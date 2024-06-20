@@ -35,6 +35,11 @@ enum Abi {
   t6,
 }
 
+enum Form {
+  byte,
+  word,
+}
+
 enum DataSize {
   byte, //       0x00
   halfword, //   0x0000
@@ -45,6 +50,7 @@ enum DataSize {
 // Opcode catagories
 const system = 0x73; //      0b1110011
 const loads = 0x03; //       0b0000011
+const stores = 0x23; //      0b0000011
 const immediates = 0x13; //  0b0010011
 const lui = 0x37; //         0b0110111
 const auipc = 0x17; //       0b0010111
@@ -79,3 +85,11 @@ const system_Ebreak = 1;
 
 // LB, LHU/L, LW
 const LW_Width = 2;
+
+const Byte0 = 0; // LSB
+const Byte1 = 1;
+const Byte2 = 2;
+const Byte3 = 3;
+
+const HalfwordL = 0;
+const HalfwordH = 1;

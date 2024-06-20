@@ -17,19 +17,26 @@ void main(List<String> arguments) {
   print(uart);
 
   // Manually load to rom
-  // regexp for parsing x.out file: '([ 0-9]+):([\t0-9a-f]+)'
-  devices.write(0x400, 0x00001337);
-  devices.write(0x401, 0x90030313);
-  devices.write(0x402, 0x00a32583);
-  devices.write(0x403, 0x00100073); // ebreak
+  // regexp for parsing x.out file: '([ 0-9]+):.([\t0-9a-f]+)'
+  // All address are in byte-form, for example, address 0x401 in word-form
+  // is actually 0x404 in byte form.
+  int addr = 0x400;
+  devices.write(addr, 0x00001337);
+  devices.write(addr += 4, 0x90830313);
+  devices.write(addr += 4, 0xaabbd5b7);
+  devices.write(addr += 4, 0xcdd58593);
+  devices.write(addr += 4, 0x00b32023);
+  devices.write(addr += 4, 0x00100073); // ebreak
+  rom.writeProtected = true;
 
-  // Load some data
-  devices.write(0x0900 + 0x0a, 0xdeadbeaf);
+  rom.dump(0x400, 0x41a);
 
-  Convertions conv = Convertions(BigInt.from(devices.read(0x0900 + 0x0a)));
-
-  print('Mem at 0x90a:');
-  print(conv.decorateBinaryUnderscores(conv.toBinString()));
+  // Store some data for testing.
+  //                      7 6 5 4
+  devices.write(0x0904, 0x12345678);
+  //                      b a 9 8
+  devices.write(0x0908, 0xdeadbeaf);
+  ram.dump(0x904, 0x908);
 
   SoC soc = SoC(devices);
   soc.reset();

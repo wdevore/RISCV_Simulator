@@ -1,7 +1,10 @@
-import 'package:console3_noisolate/definitions.dart';
-
 class Arithmetics {
-  BigInt value = BigInt.zero;
+  late BigInt value = BigInt.zero;
+  final BigInt signBit = BigInt.from(0x0000000080000000);
+  final BigInt wordMask = BigInt.from(0xffffffff00000000);
+
+  factory Arithmetics.createZero() => Arithmetics(BigInt.zero);
+  factory Arithmetics.fromInt(int v) => Arithmetics(BigInt.from(v));
 
   Arithmetics(this.value);
 
@@ -45,6 +48,19 @@ class Arithmetics {
     return sign.toInt() > 0;
   }
 
+  /// Sign extend to 64 bits for internal computation.
+  BigInt signExtendDoubleWord() {
+    // Test bit 31 for the 32bit sign flag. If set then
+    // sign extend to 64bits internally using bit 31.
+    BigInt sign = value & signBit;
+
+    if (sign.toInt() > 0) {
+      value = value | wordMask;
+    }
+
+    return value;
+  }
+
   // Sign extends based on designated bit.
   // Value should already be shifted right.
   void signExtend(
@@ -52,5 +68,43 @@ class Arithmetics {
     int extendMask, // Bits to set
   ) {
     value = value | BigInt.from(extendMask);
+  }
+
+  // Sign extends based on designated bit.
+  // ffffffff_ffffffff_ffffffff_ffffffff_ffffffff_ffffffff_S0000000_00000000
+  void signExtendHalfWord() {
+    if (isSigned(signMask: 0x0000000000008000)) {
+      int mask = 0xfffffffffff0000;
+      value = value | BigInt.from(mask);
+    } else {
+      keepLowerHalfword();
+    }
+  }
+
+  // Sign extends based on designated bit.
+  // ffffffff_ffffffff_ffffffff_ffffffff_ffffffff_ffffffff_ffffffff_ffffS000
+  void signExtendByte() {
+    if (isSigned(signMask: 0x0000000000000080)) {
+      int mask = 0xfffffffffffff00;
+      value = value | BigInt.from(mask);
+    } else {
+      keepLowerByte();
+    }
+  }
+
+  BigInt keepLowerByte() {
+    int mask = 0x0000000000000ff;
+    setData(mask);
+    return value;
+  }
+
+  BigInt keepLowerHalfword() {
+    int mask = 0x00000000000ffff;
+    setData(mask);
+    return value;
+  }
+
+  void setData(int mask) {
+    value = value & BigInt.from(mask);
   }
 }

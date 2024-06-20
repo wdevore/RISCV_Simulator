@@ -41,11 +41,11 @@ class MemoryMappedDevices {
     }
   }
 
-  void write(int address, int value) {
+  void write(int address, int value, {int writeMask = 0xffffffff}) {
     // Determine which Block the address resides in.
     try {
       BlockDevice block = mem.firstWhere((blk) => blk.contains(address));
-      block.write(address, value);
+      block.write(address, value, writeMask);
     } on StateError {
       throw Exception(
           'Memory write error: no BlockDevices at address 0x${address.toRadixString(16)}');

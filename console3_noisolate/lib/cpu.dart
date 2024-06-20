@@ -6,7 +6,7 @@ import 'package:console3_noisolate/register.dart';
 import 'definitions.dart';
 
 class CPU {
-  List<Register> regs = List.filled(32, Register(0));
+  late List<Register> regs;
 
   Register pc = Register(0);
 
@@ -14,17 +14,25 @@ class CPU {
 
   bool ebreakHit = false;
 
-  CPU(this.devices);
+  CPU(this.devices) {
+    regs = <Register>[];
+    for (var i = 0; i < 32; i++) {
+      regs.add(Register(0));
+    }
+  }
 
   void reset({int resetVector = 0}) {
     // Reset PC
     pc.reset(resetVector);
-    regs.map((register) => register.reset(0));
+    for (var register in regs) {
+      register.reset(0);
+    }
+    // regs.map((register) => register.reset(0));
   }
 
   int _fetch() {
     int inst = devices.read(pc.byInt);
-    pc.byInt++;
+    pc.byInt += 4;
     return inst;
   }
 
@@ -33,21 +41,37 @@ class CPU {
 
     Convertions conv = Convertions(inst);
     print(
-        '${conv.toHexString(width: 32, withPrefix: true)} : ${conv.toBinString(width: 32)}');
+        'Instruction: ${conv.toHexString(width: 32, withPrefix: true)} : ${conv.toBinString(width: 32)}');
 
     // Break down the bit fields of the instruction
     // Opcode catagory:
     BigInt opcode = _extractOpcode(inst);
+    conv.byInt = opcode.toInt();
+    print('opcode: ${conv.toHexString(width: 8, withPrefix: true)}');
 
     switch (opcode.toInt()) {
       case loads:
-        print('Load instructions');
         BigInt rd = _extractImmDestination(inst); //     dest
         BigInt width = _extractFunct3(inst); //          funct3
         BigInt base = _extractImmBase(inst); //          rs1
         BigInt offset = _extractImmITypeOffset(inst); // imm
 
         _processLoads(rd, width, base, offset);
+        break;
+      case stores: // S-Type
+        // Offset is a concatination of two immediate fields:
+        // imm[11:5] from bits 31-25 OR-ed to imm[4:0] from bits 11-7.
+        BigInt imm11_5 = _extractImmSTypeH(inst);
+        BigInt imm4_0 = _extractImmSTypeL(inst);
+        BigInt imm = imm11_5 | imm4_0; // aka Offset
+        Arithmetics immSE = Arithmetics(imm);
+        imm = immSE.signExtendDoubleWord();
+
+        BigInt base = _extractImmBase(inst); //          rs1
+        BigInt width = _extractFunct3(inst); //          funct3
+        BigInt rs2 = _extractSTypeRs1(inst); //          rs1
+
+        _processStores(width, base, rs2, imm);
         break;
       case immediates:
         // addi, slti[u], andi, ori, xori
@@ -64,8 +88,10 @@ class CPU {
         // Sign extend immediate but not for sltiu
         if (type.toInt() != immType_SLTIU) {
           Arithmetics ar = Arithmetics(imm);
-          ar.signExtend(0xfffffffffffff000);
-          imm = ar.value;
+          if (ar.isSigned(signMask: 0x0000000000000800)) {
+            ar.signExtend(0xfffffffffffff000);
+            imm = ar.value;
+          }
         }
 
         _processImms(rd, type, src, imm);
@@ -82,27 +108,30 @@ class CPU {
         break;
       case auipc:
         BigInt rd = _extractImmDestination(inst); // dest
-        BigInt imm = _extractImmSystem(inst); //     imm
+        BigInt imm = _extractImmTypeU(inst); //      imm
 
         break;
       case system:
         BigInt rd = _extractImmDestination(inst); //  dest
         BigInt funct3 = _extractFunct3(inst); //      funct3
         BigInt rs1 = _extractImmBase(inst); //        rs1/src
-        BigInt imm = _extractImmTypeUOffset(inst); // imm
+        BigInt imm = _extractImmSystem(inst); // imm
 
         _processSystems(rd, funct3, rs1, imm);
         break;
       case r_types:
         // add, slt, sltu, and, or, xor, sll, srl, sub, sra
         BigInt rd = _extractImmDestination(inst); // dest
-        BigInt funct3 = _extractFunct3(inst); //        funct3
+        BigInt funct3 = _extractFunct3(inst); //     funct3
         BigInt rs1 = _extractImmBase(inst); //       rs1/src
-        BigInt rs2 = _extractImmRs2(inst); //       rs1/src
-        BigInt funct7 = _extractFunct7(inst); //        funct3
+        BigInt rs2 = _extractImmRs2(inst); //        rs1/src
+        BigInt funct7 = _extractFunct7(inst); //     funct3
 
         _processRTypes(rd, funct3, rs1, rs2, funct7);
         break;
+      default:
+        throw Exception(
+            'Unknown opcode ${conv.toHexString(width: 8, withPrefix: true)}');
     }
   }
 
@@ -113,6 +142,7 @@ class CPU {
       _decode(instruction);
 
       if (ebreakHit) {
+        print('System Ebreak reached!');
         break;
       }
     }
@@ -131,8 +161,95 @@ class CPU {
     switch (width.toInt()) {
       case Funct3_SizeWord:
         reg.byInt = data;
-        // Convertions conv = Convertions(reg.value);
-        // print(conv.toHexString());
+        break;
+      case Funct3_SizeHalfWord:
+        Arithmetics ar = Arithmetics.fromInt(data);
+        ar.signExtendHalfWord();
+        reg.value = ar.value;
+        break;
+      case Funct3_SizeByte:
+        Arithmetics ar = Arithmetics.fromInt(data);
+        ar.signExtendByte();
+        reg.value = ar.value;
+        break;
+      case Funct3_SizeByteUnsigned:
+        Arithmetics ar = Arithmetics.fromInt(data);
+        reg.value = ar.keepLowerByte();
+        break;
+      case Funct3_SizeHWUnsigned:
+        Arithmetics ar = Arithmetics.fromInt(data);
+        reg.value = ar.keepLowerHalfword();
+        break;
+    }
+    Convertions conv = Convertions(reg.value);
+    print(conv.toHexString());
+  }
+
+  void _processStores(BigInt width, BigInt rs1, BigInt rs2, BigInt imm) {
+    // M[R[rs1] + imm] = R[rs2](7:0)
+    Register regRs1 = regs[rs1.toInt()]; // base
+    Register regRs2 = regs[rs2.toInt()]; // src
+
+    // Address is in byte-form and must be Word aligned
+    BigInt address = regRs1.value + imm; // byte-form
+
+    switch (width.toInt()) {
+      case Funct3_SizeByte:
+        // Store lower 8bits at address
+
+        // offset (aka imm, in bytes) is 12bits signed +-2048
+        // byte select = offset % 4
+
+        // Locate which Byte within Word
+        // 0 means Word aligned.
+        int byteSelect = address.toInt() % 4;
+        int value = (regRs2.value << (byteSelect * 8)).toInt();
+        // int value = (regRs2.value >> (byteSelect * 8)).toInt();
+
+        int writeMask = 0;
+        switch (byteSelect) {
+          case Byte0:
+            writeMask = 0xffffff00;
+            break;
+          case Byte1:
+            writeMask = 0xffff00ff;
+            break;
+          case Byte2:
+            writeMask = 0xff00ffff;
+            break;
+          case Byte3:
+            writeMask = 0x00ffffff;
+            break;
+        }
+
+        // Word align address by clearing last two bits
+        // 11111111_11111111_11111111_11111100 = 0xfffffffc
+        address = address & BigInt.from(0xfffffffc);
+        devices.write(address.toInt(), value, writeMask: writeMask);
+        break;
+      case Funct3_SizeHalfWord:
+        // Locate which Halfword within Word
+        int halfSelect = address.toInt() % 2;
+        int value = (regRs2.value << (halfSelect * 16)).toInt();
+
+        int writeMask = 0;
+        switch (halfSelect) {
+          case HalfwordL:
+            writeMask = 0xffff0000;
+            break;
+          case HalfwordH:
+            writeMask = 0x0000ffff;
+            break;
+        }
+
+        // Word align address by clearing last two bits
+        // 11111111_11111111_11111111_11111100 = 0xfffffffc
+        address = address & BigInt.from(0xfffffffc);
+        devices.write(address.toInt(), value, writeMask: writeMask);
+        break;
+      case Funct3_SizeWord:
+        devices.write(address.toInt(), regRs2.value.toInt(),
+            writeMask: 0xffffffff);
         break;
     }
   }
@@ -249,11 +366,19 @@ BigInt _extractFunct3(BigInt instruction) {
   return field;
 }
 
-BigInt _extractImmSystem(BigInt instruction) {
+BigInt _extractImmTypeU(BigInt instruction) {
   // Bits 31-12
   // 11111111_11111111_11110000_00000000
   BigInt field = instruction & BigInt.from(0xfffff000);
   field >>= 12;
+  return field;
+}
+
+BigInt _extractImmSystem(BigInt instruction) {
+  // Bits 31-12
+  // 11111111_11110000_00000000_00000000
+  BigInt field = instruction & BigInt.from(0xfff00000);
+  field >>= 20;
   return field;
 }
 
@@ -262,14 +387,6 @@ BigInt _extractImmBase(BigInt instruction) {
   // 00000000_00001111_10000000_00000000
   BigInt field = instruction & BigInt.from(0x000f8000);
   field >>= 15;
-  return field;
-}
-
-BigInt _extractImmTypeUOffset(BigInt instruction) {
-  // Bits 31-20
-  // 11111111_11111111_11110000_00000000
-  BigInt field = instruction & BigInt.from(0xfffff000);
-  field >>= 12;
   return field;
 }
 
@@ -296,5 +413,35 @@ BigInt _extractFunct7(BigInt instruction) {
   // 11111110_00000000_00000000_00000000
   BigInt field = instruction & BigInt.from(0xfe000000);
   field >>= 25;
+  return field;
+}
+
+BigInt _extractImmSTypeH(BigInt instruction) {
+  // Bits 31-25
+  // 11111110_00000000_00000000_00000000
+  BigInt field = instruction & BigInt.from(0xfe000000);
+  // We don't shift by 25 because we want the high immediate
+  // in the upper bit positions.
+  field >>= 25 - 7;
+  return field;
+}
+
+BigInt _extractImmSTypeL(BigInt instruction) {
+  // Bits 11-7
+  // 00000000_00000000_00000111_10000000
+  BigInt field = instruction & BigInt.from(0x00000780);
+  // Shift all the way to end so that the bits are ready
+  // for ORing.
+  field >>= 7;
+  return field;
+}
+
+BigInt _extractSTypeRs1(BigInt instruction) {
+  // Bits 24-20
+  // 00000001_11110000_00000000_00000000
+  BigInt field = instruction & BigInt.from(0x01f00000);
+  // Shift all the way to end so that the bits are ready
+  // for ORing.
+  field >>= 20;
   return field;
 }
