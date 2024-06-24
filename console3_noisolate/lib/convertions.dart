@@ -24,7 +24,7 @@ class Convertions {
     return v;
   }
 
-  String decorateBinaryUnderscores(String v, {int bits = 64, int width = 8}) {
+  String addUnderscores(String v, {int bits = 64, int width = 8}) {
     String s = '';
     for (var i = 0; i < bits; i += width) {
       s += '${v.substring(i, i + width)}_';

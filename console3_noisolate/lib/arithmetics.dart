@@ -62,9 +62,10 @@ class Arithmetics {
   }
 
   // Sign extends based on designated bit.
+  // It is expected that the value has already been checked
+  // for sign bit.
   // Value should already be shifted right.
   void signExtend(
-    // ffffffff_ffffffff_ffffffff_ffffffff_ffffffff_ffffffff_fffff000_00000000
     int extendMask, // Bits to set
   ) {
     value = value | BigInt.from(extendMask);

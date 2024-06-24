@@ -1,0 +1,13 @@
+
+./test:     file format elf32-littleriscv
+
+Sections:
+Idx Name          Size      VMA       LMA       File off  Algn  Flags
+  0 .text         0000000c  00000000  00000000  00001000  2**2  CONTENTS, ALLOC, LOAD, READONLY, CODE
+
+Disassembly of section .text:
+
+00000000 <_start>:
+   0:	00a00313 	li	t1,10
+   4:	00432593 	slti	a1,t1,4
+   8:	00100073 	ebreak

@@ -24,6 +24,7 @@ import 'package:console3_noisolate/block_device.dart';
 class MemoryMappedDevices {
   // Memory is thought of as Words (32 bits)
   late List<BlockDevice> mem = [];
+  BigInt wordAlignMask = BigInt.from(0xfffffffc);
 
   BlockDevice addDevice(String name, int startAddress, int size) {
     BlockDevice bd = BlockDevice.create(size, name)..mapTo(startAddress);
@@ -41,14 +42,24 @@ class MemoryMappedDevices {
     }
   }
 
-  void write(int address, int value, {int writeMask = 0xffffffff}) {
+  void write(BigInt address, int value, {int writeMask = 0xffffffff}) {
     // Determine which Block the address resides in.
+
+    // Word align address by clearing last two bits
+    // 11111111_11111111_11111111_11111100 = 0xfffffffc
+    BigInt addr = address & wordAlignMask;
+
     try {
-      BlockDevice block = mem.firstWhere((blk) => blk.contains(address));
-      block.write(address, value, writeMask);
+      BlockDevice block =
+          mem.firstWhere((blk) => blk.contains(address.toInt()));
+      block.write(addr.toInt(), value, writeMask);
     } on StateError {
       throw Exception(
           'Memory write error: no BlockDevices at address 0x${address.toRadixString(16)}');
     }
+  }
+
+  void writeByInt(int address, int value) {
+    write(BigInt.from(address), value);
   }
 }

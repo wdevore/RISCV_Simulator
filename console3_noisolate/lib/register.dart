@@ -3,15 +3,22 @@
 import 'package:console3_noisolate/definitions.dart';
 
 class Register {
-  BigInt value = BigInt.zero;
+  BigInt _value = BigInt.zero;
   final BigInt signBit = BigInt.from(0x0000000080000000);
   final BigInt byteMask = BigInt.from(0xffffffffffffff00);
   final BigInt halfWordMask = BigInt.from(0xffffffffffff0000);
   final BigInt wordMask = BigInt.from(0xffffffff00000000);
+  bool isZeroRegister = false;
 
   Register(int v) {
     byInt = v;
   }
+
+  set value(BigInt bi) {
+    if (!isZeroRegister) _value = bi;
+  }
+
+  BigInt get value => _value;
 
   set byInt(int v) {
     value = BigInt.from(v);

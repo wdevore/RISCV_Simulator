@@ -55,6 +55,8 @@ const immediates = 0x13; //  0b0010011
 const lui = 0x37; //         0b0110111
 const auipc = 0x17; //       0b0010111
 const r_types = 0x33; //     0b0110011
+const jal = 0x6f; //         0b1101111
+const jalr = 0x67; //        0b1100111
 
 const Funct3_SizeByte = 0;
 const Funct3_SizeHalfWord = 1;
@@ -67,7 +69,8 @@ const immType_SLLI = 1;
 const immType_SLTI = 2;
 const immType_SLTIU = 3;
 const immType_XORI = 4;
-const immType_SRLI = 5; // also SRAI
+const immType_SRLI = 5;
+const immType_SRAI = 5;
 const immType_ORI = 6;
 const immType_ANDI = 7;
 
