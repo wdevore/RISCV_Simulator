@@ -57,6 +57,7 @@ const auipc = 0x17; //       0b0010111
 const r_types = 0x33; //     0b0110011
 const jal = 0x6f; //         0b1101111
 const jalr = 0x67; //        0b1100111
+const branches = 0x63; //    0b1100011
 
 const Funct3_SizeByte = 0;
 const Funct3_SizeHalfWord = 1;
@@ -73,6 +74,13 @@ const immType_SRLI = 5;
 const immType_SRAI = 5;
 const immType_ORI = 6;
 const immType_ANDI = 7;
+
+const sbType_BEQ = 0;
+const sbType_BNE = 1;
+const sbType_BLT = 4;
+const sbType_BGE = 5;
+const sbType_BLTU = 6;
+const sbType_BGEU = 7;
 
 const RType_ADD_SUB = 0; // funct7 = 1 for SUB
 const RType_SLL = 1;

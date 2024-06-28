@@ -17,8 +17,10 @@ void main(List<String> arguments) {
   BlockDevice uart = devices.addDevice('UART', ram.end + 1 + 0x1000, 0x04);
   print(uart);
 
+  // -------------------------------------------
   // All address are in byte-form, for example, address 0x401 in word-form
   // is actually 0x404 in byte form.
+  // -------------------------------------------
   BigInt baseAddr = BigInt.from(0x400);
   // Load program
   int status = _loadProgram(baseAddr, devices);
@@ -31,6 +33,7 @@ void main(List<String> arguments) {
   // devices.write(baseAddr += incBy, 0x00200393);
   // devices.write(baseAddr += incBy, 0x007355b3);
   // devices.write(baseAddr += incBy, 0x00100073); // ebreak
+
   rom.writeProtected = true;
 
   rom.dump(0x400, 0x41a);

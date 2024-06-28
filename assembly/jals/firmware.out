@@ -3,11 +3,19 @@
 
 Sections:
 Idx Name          Size      VMA       LMA       File off  Algn  Flags
-  0 .text         0000000c  00000000  00000000  00001000  2**2  CONTENTS, ALLOC, LOAD, READONLY, CODE
+  0 .text         0000001c  00000000  00000000  00001000  2**2  CONTENTS, ALLOC, LOAD, READONLY, CODE
 
 Disassembly of section .text:
 
 00000000 <_start>:
-   0:	00128293 	add	t0,t0,1
-   4:	ffdff0ef 	jal	0 <_start>
-   8:	00100073 	ebreak
+   0:	00000293 	li	t0,0
+
+00000004 <loop>:
+   4:	00000097 	auipc	ra,0x0
+   8:	010080e7 	jalr	16(ra) # 14 <cnt>
+   c:	ff9ff06f 	j	4 <loop>
+  10:	00100073 	ebreak
+
+00000014 <cnt>:
+  14:	00128293 	add	t0,t0,1
+  18:	00008067 	ret
