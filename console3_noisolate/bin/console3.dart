@@ -36,7 +36,7 @@ void main(List<String> arguments) {
 
   rom.writeProtected = true;
 
-  rom.dump(0x400, 0x41a);
+  rom.dump(0x400, 0x42c);
 
   // Store some data for testing.
   //                      7 6 5 4

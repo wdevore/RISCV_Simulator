@@ -5,19 +5,31 @@
 
 # ra = x1
 
-.global _start
-_start:
 
-    li t0, 1    # x5
-    li t1, 2    # x6
-    beq t0, t1, bbeq    # if t0 == t1 then target
-    bne t0, t1, bbne    # if t0 != t1 then target
-    
-bbeq:
+.global _start
+
+_start:
+    j go
+
+test1:
     li t2, 0x0a # x7
     ebreak
 
-bbne:
+test2:
     li t2, 0x0b # x7
     ebreak
+
+go:
+    li t0, -4    # x5
+    li t1, 6    # x6
+    bltu t0, t1, test1
+    bgeu t0, t1, test2
+    # blt t0, t1, test1
+    # bge t0, t1, test2
+    # beq t0, t1, test1
+    # bne t0, t1, test2
+
+    li t2, 0x0c # x7
+    ebreak
+
 

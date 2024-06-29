@@ -94,13 +94,19 @@ class Arithmetics {
   }
 
   BigInt keepLowerByte() {
-    int mask = 0x0000000000000ff;
+    int mask = 0x00000000000000ff;
     setData(mask);
     return value;
   }
 
   BigInt keepLowerHalfword() {
-    int mask = 0x00000000000ffff;
+    int mask = 0x000000000000ffff;
+    setData(mask);
+    return value;
+  }
+
+  BigInt keepLowerWord() {
+    int mask = 0x00000000ffffffff;
     setData(mask);
     return value;
   }

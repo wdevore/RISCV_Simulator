@@ -14,6 +14,7 @@ class CPU {
   final MemoryMappedDevices devices;
 
   bool ebreakHit = false;
+  bool branchTaken = false;
 
   CPU(this.devices) {
     regs = <Register>[];
@@ -218,6 +219,8 @@ class CPU {
         _processRTypes(rd, funct3, rs1, rs2, funct7);
         break;
       case branches:
+        // PC-relative addressing. The offset is signed extended
+        // multiplied by 2 (aka << 1)
         BigInt imm = _extractSBTypeImm(inst); // dest
         BigInt funct3 = _extractFunct3(inst); //     funct3
         BigInt rs1 = _extractImmBase(inst); //       rs1/src
@@ -243,7 +246,11 @@ class CPU {
       case jalr:
         break;
       default:
-        nextPc.byInt = pc.byInt + 4;
+        if (!branchTaken) {
+          nextPc.value = pc.value + BigInt.from(4);
+        } else {
+          branchTaken = false;
+        }
         break;
     }
   }
@@ -484,7 +491,52 @@ class CPU {
     }
   }
 
-  void _processBranches(BigInt imm, BigInt funct3, BigInt rs1, BigInt rs2) {}
+  void _processBranches(BigInt imm, BigInt funct3, BigInt rs1, BigInt rs2) {
+    branchTaken = false;
+    Register rs1R = regs[rs1.toInt()];
+    Register rs2R = regs[rs2.toInt()];
+
+    switch (funct3.toInt()) {
+      case sbType_BEQ:
+        branchTaken = rs1R.value == rs2R.value;
+        break;
+      case sbType_BNE:
+        branchTaken = rs1R.value != rs2R.value;
+        break;
+      case sbType_BLT:
+        branchTaken = rs1R.value < rs2R.value;
+        break;
+      case sbType_BGE:
+        branchTaken = rs1R.value > rs2R.value;
+        break;
+      case sbType_BLTU:
+        Arithmetics ar1 = Arithmetics.fromInt(rs1R.value.toInt());
+        ar1.keepLowerWord();
+        Arithmetics ar2 = Arithmetics.fromInt(rs2R.value.toInt());
+        ar2.keepLowerWord();
+        branchTaken = ar1.value < ar2.value;
+        break;
+      case sbType_BGEU:
+        Arithmetics ar1 = Arithmetics.fromInt(rs1R.value.toInt());
+        ar1.keepLowerWord();
+        Arithmetics ar2 = Arithmetics.fromInt(rs2R.value.toInt());
+        ar2.keepLowerWord();
+        branchTaken = ar1.value > ar2.value;
+        break;
+    }
+
+    // Remove carry over into upper bits above bit11
+    // 31    24 23    16 15     8 7      0
+    // 00000000_00100000_00000100_00000100   <- carry over
+    // 00000000_00000000_00001111_11111111   <- removal mask
+    if (branchTaken) {
+      nextPc.value = (pc.value + imm) & BigInt.from(0x00000fff);
+      Convertions c = Convertions(BigInt.zero);
+      c.value = nextPc.value;
+      print(
+          '${c.toHexString(width: 32)} : ${c.toBinString(width: 32)} <- nextPc');
+    }
+  }
 }
 
 // -----------------------------------------------
@@ -701,14 +753,14 @@ BigInt _extractSBTypeImm(BigInt instruction) {
   // 11111110_00000000_00001111_10000000
 
   // 00000000_01100010_10010110_01100011
-  //                       ---- -
+  //                       ----
 
   // --------- Move bits 11-8 of instruction to bits 4-1 of imm
   // 31    24 23    16 15     8 7      0
   // 11111110_00000000_0000----_10000000
   // 00000000_00000000_00001111_00000000
   // to
-  // 00000000_00000000_00000000_00011110
+  // 00000000_00000000_00000000_00011110  <- mask
   //                               |4
   isolateMask = BigInt.from(0x0000001e); // isolate 4 bits
   c.value = isolateMask;
@@ -729,9 +781,9 @@ BigInt _extractSBTypeImm(BigInt instruction) {
   // 11111110_00000000_00001111_-0000000
   // 00000000_00000000_00000000_10000000
   // to                         |7
-  // 00000000_00000000_00001000_00000000
+  // 00000000_00000000_00001000_00000000  <- mask
   //                       |11
-  isolateMask = BigInt.from(0x00000080); // isolate mask
+  isolateMask = BigInt.from(0x00000800); // isolate mask
   c.value = isolateMask;
   print('${c.toHexString(width: 32)} : ${c.toBinString(width: 32)}');
   shift = instruction << 4;
@@ -750,9 +802,9 @@ BigInt _extractSBTypeImm(BigInt instruction) {
   // -1111110_00000000_00001111_10000000
   // 10000000_00000000_00000000_00000000
   // to
-  // 00000000_00000000_00010000_00000000
+  // 00000000_00000000_00010000_00000000  <- mask
   //                      |12
-  isolateMask = BigInt.from(0x80000000); // isolate mask
+  isolateMask = BigInt.from(0x00001000); // isolate mask
   c.value = isolateMask;
   print('${c.toHexString(width: 32)} : ${c.toBinString(width: 32)}');
   shift = instruction >> 19;
@@ -771,7 +823,7 @@ BigInt _extractSBTypeImm(BigInt instruction) {
   // 1------0_00000000_00001111_10000000
   // 01111110_00000000_00000000_00000000
   // to
-  // 00000000_00000000_00000111_11100000
+  // 00000000_00000000_00000111_11100000  <- mask
   //                        |10
   isolateMask = BigInt.from(0x000007e0); // isolate mask
   c.value = isolateMask;
@@ -786,6 +838,10 @@ BigInt _extractSBTypeImm(BigInt instruction) {
   c.value = imm;
   print('${c.toHexString(width: 32)} : ${c.toBinString(width: 32)}');
   print('------------------------');
+
+  // 31    24 23    16 15     8 7      0
+  // 00000000_00000000_00001111_11111111  <- 12bit clear mask
+  imm = imm & BigInt.from(0x00000fff);
 
   return imm;
 }
