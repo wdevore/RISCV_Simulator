@@ -7,7 +7,7 @@ class Convertions {
     value = BigInt.from(v);
   }
 
-  String toBinString({width = 64, withPrefix = false}) {
+  String toBinString({int width = 64, bool withPrefix = false}) {
     String v = value.toUnsigned(width).toRadixString(2).padLeft(width, '0');
     if (withPrefix) {
       return '0b$v';
@@ -15,7 +15,12 @@ class Convertions {
     return v;
   }
 
-  String toHexString({width = 64, withPrefix = false}) {
+  String toHexStringWV32Pf(BigInt val) {
+    String v = val.toUnsigned(32).toRadixString(16).padLeft(32 ~/ 4, '0');
+    return '0x$v';
+  }
+
+  String toHexString({int width = 64, bool withPrefix = false}) {
     String v =
         value.toUnsigned(width).toRadixString(16).padLeft(width ~/ 4, '0');
     if (withPrefix) {

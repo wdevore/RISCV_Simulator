@@ -1,4 +1,5 @@
 import 'dart:io' as io;
+import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
@@ -36,7 +37,9 @@ void main(List<String> arguments) {
 
   rom.writeProtected = true;
 
-  rom.dump(0x400, 0x42c);
+  int pcResetAddr = 0x400;
+
+  rom.dump(pcResetAddr, 0x42c);
 
   // Store some data for testing.
   //                      7 6 5 4
@@ -46,10 +49,68 @@ void main(List<String> arguments) {
   ram.dump(0x904, 0x908);
 
   SoC soc = SoC(devices);
-  soc.reset();
-  soc.run();
 
-  print('Main isolate done.');
+  soc.reset(resetVector: pcResetAddr);
+
+  soc.renderDisplay();
+
+  // Loop on console input
+  bool exitEmu = false;
+
+  // Previous inputs
+  String previousCmd = '';
+  int pStart = 0;
+  int pEnd = 0;
+
+  while (!exitEmu) {
+    stdout.write('> ');
+    String? command = stdin.readLineSync();
+    if (command! == '') {
+      command = previousCmd;
+    }
+    List<String> fs = command.split(' ');
+    if (fs.length > 1) {
+      command = fs[0];
+    }
+
+    switch (command) {
+      case 's':
+        soc.instructionStep();
+        soc.renderDisplay();
+        break;
+      case 't': // Reset
+        soc.reset(resetVector: pcResetAddr);
+        soc.renderDisplay();
+        break;
+      case 'y':
+        soc.renderDisplay();
+        break;
+      case 'x': // Exit
+        exitEmu = true;
+        break;
+      case 'd':
+        // dump mem: d start length (in words)
+        if (fs.length == 3) {
+          int start = int.parse(fs[1], radix: 16);
+          int length = int.parse(fs[2]);
+          pStart = start;
+          pEnd = start + (length * 4);
+        } else if (fs.length == 2) {
+          int start = int.parse(fs[1], radix: 16);
+          pStart = start;
+          pEnd = start + (10 * 4);
+        }
+        rom.dump(pStart, pEnd);
+        break;
+      default:
+        print('UNKNOWN command: $command');
+        break;
+    }
+
+    previousCmd = command;
+  }
+
+  print('Emu exiting...');
   io.exit(0);
 }
 

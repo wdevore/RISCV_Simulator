@@ -23,18 +23,18 @@ import 'package:console3_noisolate/block_device.dart';
 
 class MemoryMappedDevices {
   // Memory is thought of as Words (32 bits)
-  late List<BlockDevice> mem = [];
+  late List<BlockDevice> devices = [];
   BigInt wordAlignMask = BigInt.from(0xfffffffc);
 
   BlockDevice addDevice(String name, int startAddress, int size) {
     BlockDevice bd = BlockDevice.create(size, name)..mapTo(startAddress);
-    mem.add(bd);
+    devices.add(bd);
     return bd;
   }
 
   int read(int address) {
     try {
-      BlockDevice block = mem.firstWhere((blk) => blk.contains(address));
+      BlockDevice block = devices.firstWhere((blk) => blk.contains(address));
       return block.read(address);
     } on StateError {
       throw Exception(
@@ -51,7 +51,7 @@ class MemoryMappedDevices {
 
     try {
       BlockDevice block =
-          mem.firstWhere((blk) => blk.contains(address.toInt()));
+          devices.firstWhere((blk) => blk.contains(address.toInt()));
       block.write(addr.toInt(), value, writeMask);
     } on StateError {
       throw Exception(
@@ -61,5 +61,14 @@ class MemoryMappedDevices {
 
   void writeByInt(int address, int value) {
     write(BigInt.from(address), value);
+  }
+
+  BlockDevice? findDevice(String name) {
+    for (var block in devices) {
+      if (block.name == name) {
+        return block;
+      }
+    }
+    return null;
   }
 }

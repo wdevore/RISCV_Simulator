@@ -25,12 +25,15 @@ class CPU {
   }
 
   void reset({int resetVector = 0}) {
+    ebreakHit = false;
+    branchTaken = false;
+
     // Reset PC
     pc.reset(resetVector);
+
     for (var register in regs) {
       register.reset(0);
     }
-    // regs.map((register) => register.reset(0));
   }
 
   int _fetch() {
@@ -43,14 +46,14 @@ class CPU {
 
     Convertions conv = Convertions(inst);
     Convertions pcc = Convertions(pc.value);
-    print(
-        'Instruction: ${conv.toHexString(width: 32, withPrefix: true)} : ${conv.toBinString(width: 32)} <- pc: ${pcc.toHexString(width: 32, withPrefix: true)}');
+    // print(
+    //     'Instruction: ${conv.toHexString(width: 32, withPrefix: true)} : ${conv.toBinString(width: 32)} <- pc: ${pcc.toHexString(width: 32, withPrefix: true)}');
 
     // Break down the bit fields of the instruction
     // Opcode catagory:
     BigInt opcode = _extractOpcode(inst);
-    conv.byInt = opcode.toInt();
-    print('opcode: ${conv.toHexString(width: 8, withPrefix: true)}');
+    // conv.byInt = opcode.toInt();
+    // print('opcode: ${conv.toHexString(width: 8, withPrefix: true)}');
 
     switch (opcode.toInt()) {
       case loads:
@@ -262,16 +265,22 @@ class CPU {
       // c.byInt = pc.byInt;
       // print('pc: ${c.toHexString(width: 32, withPrefix: true)}');
 
+      nextInstruction();
+
+      if (ebreakHit) {
+        // print('System Ebreak reached!');
+        break;
+      }
+    }
+  }
+
+  void nextInstruction() {
+    if (!ebreakHit) {
       int instruction = _fetch();
 
       _decode(instruction);
 
       pc.byInt = nextPc.byInt;
-
-      if (ebreakHit) {
-        print('System Ebreak reached!');
-        break;
-      }
     }
   }
 
@@ -533,8 +542,8 @@ class CPU {
       nextPc.value = (pc.value + imm) & BigInt.from(0x00000fff);
       Convertions c = Convertions(BigInt.zero);
       c.value = nextPc.value;
-      print(
-          '${c.toHexString(width: 32)} : ${c.toBinString(width: 32)} <- nextPc');
+      // print(
+      //     '${c.toHexString(width: 32)} : ${c.toBinString(width: 32)} <- nextPc');
     }
   }
 }
@@ -739,8 +748,8 @@ BigInt _extractSBTypeImm(BigInt instruction) {
   BigInt imm = BigInt.zero;
   BigInt isolateMask = BigInt.zero;
 
-  c.value = instruction;
-  print('${c.toHexString(width: 32)} : ${c.toBinString(width: 32)} <- instr');
+  // c.value = instruction;
+  // print('${c.toHexString(width: 32)} : ${c.toBinString(width: 32)} <- instr');
 
   // imm is formed by swizzling bits: 31-25, 11-7
   //      instruction           imm
@@ -763,18 +772,18 @@ BigInt _extractSBTypeImm(BigInt instruction) {
   // 00000000_00000000_00000000_00011110  <- mask
   //                               |4
   isolateMask = BigInt.from(0x0000001e); // isolate 4 bits
-  c.value = isolateMask;
-  print('${c.toHexString(width: 32)} : ${c.toBinString(width: 32)}');
+  // c.value = isolateMask;
+  // print('${c.toHexString(width: 32)} : ${c.toBinString(width: 32)}');
   BigInt shift = instruction >> 7;
-  c.value = shift;
-  print('${c.toHexString(width: 32)} : ${c.toBinString(width: 32)}');
+  // c.value = shift;
+  // print('${c.toHexString(width: 32)} : ${c.toBinString(width: 32)}');
   BigInt f4_1 = shift & isolateMask; // Isolate
-  c.value = f4_1;
-  print('${c.toHexString(width: 32)} : ${c.toBinString(width: 32)}');
+  // c.value = f4_1;
+  // print('${c.toHexString(width: 32)} : ${c.toBinString(width: 32)}');
   imm = imm | f4_1; // Merge
   c.value = imm;
-  print('${c.toHexString(width: 32)} : ${c.toBinString(width: 32)}');
-  print('------------------------');
+  // print('${c.toHexString(width: 32)} : ${c.toBinString(width: 32)}');
+  // print('------------------------');
 
   // --------- Move bit 7 of instruction to bit 11 of imm
   // 31    24 23    16 15     8 7      0
@@ -784,18 +793,18 @@ BigInt _extractSBTypeImm(BigInt instruction) {
   // 00000000_00000000_00001000_00000000  <- mask
   //                       |11
   isolateMask = BigInt.from(0x00000800); // isolate mask
-  c.value = isolateMask;
-  print('${c.toHexString(width: 32)} : ${c.toBinString(width: 32)}');
+  // c.value = isolateMask;
+  // print('${c.toHexString(width: 32)} : ${c.toBinString(width: 32)}');
   shift = instruction << 4;
-  c.value = shift;
-  print('${c.toHexString(width: 32)} : ${c.toBinString(width: 32)}');
+  // c.value = shift;
+  // print('${c.toHexString(width: 32)} : ${c.toBinString(width: 32)}');
   BigInt f11 = shift & isolateMask; // Isolate
-  c.value = f11;
-  print('${c.toHexString(width: 32)} : ${c.toBinString(width: 32)}');
+  // c.value = f11;
+  // print('${c.toHexString(width: 32)} : ${c.toBinString(width: 32)}');
   imm = imm | f11; // Merge
-  c.value = imm;
-  print('${c.toHexString(width: 32)} : ${c.toBinString(width: 32)}');
-  print('------------------------');
+  // c.value = imm;
+  // print('${c.toHexString(width: 32)} : ${c.toBinString(width: 32)}');
+  // print('------------------------');
 
   // --------- Move bit 31 of instruction to bit 12 of imm
   // 31    24 23    16 15     8 7      0
@@ -805,18 +814,18 @@ BigInt _extractSBTypeImm(BigInt instruction) {
   // 00000000_00000000_00010000_00000000  <- mask
   //                      |12
   isolateMask = BigInt.from(0x00001000); // isolate mask
-  c.value = isolateMask;
-  print('${c.toHexString(width: 32)} : ${c.toBinString(width: 32)}');
+  // c.value = isolateMask;
+  // print('${c.toHexString(width: 32)} : ${c.toBinString(width: 32)}');
   shift = instruction >> 19;
-  c.value = shift;
-  print('${c.toHexString(width: 32)} : ${c.toBinString(width: 32)}');
+  // c.value = shift;
+  // print('${c.toHexString(width: 32)} : ${c.toBinString(width: 32)}');
   BigInt f31 = shift & isolateMask; // Isolate
-  c.value = f31;
-  print('${c.toHexString(width: 32)} : ${c.toBinString(width: 32)}');
+  // c.value = f31;
+  // print('${c.toHexString(width: 32)} : ${c.toBinString(width: 32)}');
   imm = imm | f31; // Merge
-  c.value = imm;
-  print('${c.toHexString(width: 32)} : ${c.toBinString(width: 32)}');
-  print('------------------------');
+  // c.value = imm;
+  // print('${c.toHexString(width: 32)} : ${c.toBinString(width: 32)}');
+  // print('------------------------');
 
   // --------- Move bits 30-25 of instruction to bits 10-5 of imm
   // 31    24 23    16 15     8 7      0
@@ -826,18 +835,18 @@ BigInt _extractSBTypeImm(BigInt instruction) {
   // 00000000_00000000_00000111_11100000  <- mask
   //                        |10
   isolateMask = BigInt.from(0x000007e0); // isolate mask
-  c.value = isolateMask;
-  print('${c.toHexString(width: 32)} : ${c.toBinString(width: 32)}');
+  // c.value = isolateMask;
+  // print('${c.toHexString(width: 32)} : ${c.toBinString(width: 32)}');
   shift = instruction >> 20;
-  c.value = shift;
-  print('${c.toHexString(width: 32)} : ${c.toBinString(width: 32)}');
+  // c.value = shift;
+  // print('${c.toHexString(width: 32)} : ${c.toBinString(width: 32)}');
   BigInt f30_25 = shift & isolateMask; // Isolate
-  c.value = f30_25;
-  print('${c.toHexString(width: 32)} : ${c.toBinString(width: 32)}');
+  // c.value = f30_25;
+  // print('${c.toHexString(width: 32)} : ${c.toBinString(width: 32)}');
   imm = imm | f30_25; // Merge
-  c.value = imm;
-  print('${c.toHexString(width: 32)} : ${c.toBinString(width: 32)}');
-  print('------------------------');
+  // c.value = imm;
+  // print('${c.toHexString(width: 32)} : ${c.toBinString(width: 32)}');
+  // print('------------------------');
 
   // 31    24 23    16 15     8 7      0
   // 00000000_00000000_00001111_11111111  <- 12bit clear mask

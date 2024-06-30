@@ -96,14 +96,17 @@ class BlockDevice {
   }
 
   /// [startAddress] and [endAddress] are in byte-form
-  void dump(int startAddress, int endAddress, {Form form = Form.word}) {
+  void dump(int startAddress, int endAddress,
+      {Form form = Form.word, bool withHeader = true}) {
     // <address> value
     Convertions conv = Convertions(BigInt.zero);
     conv.byInt = startAddress;
     String strAddr = conv.toHexString(width: 32, withPrefix: true);
     conv.byInt = endAddress;
     String endAddr = conv.toHexString(width: 32, withPrefix: true);
-    print('Memory from $strAddr to $endAddr:');
+    if (withHeader) {
+      print('Memory from $strAddr to $endAddr:');
+    }
 
     for (int address = startAddress; address <= endAddress; address += 4) {
       int data = read(address);
