@@ -1,4 +1,6 @@
 // Ram is a memory mapped collection of Blocks.
+import 'dart:io';
+
 import 'package:console3_noisolate/convertions.dart';
 import 'package:console3_noisolate/definitions.dart';
 
@@ -114,7 +116,11 @@ class BlockDevice {
       String addrData = conv.toHexString(width: 32, withPrefix: true);
       conv.byInt = data;
       String hexData = conv.toHexString(width: 32, withPrefix: true);
-      print('<$addrData> $hexData');
+      stdout.write('<$addrData> $hexData    ');
+
+      conv.byInt = data;
+      stdout.write(conv.wordToString());
+      print('');
     }
   }
 }

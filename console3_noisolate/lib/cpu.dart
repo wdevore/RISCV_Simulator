@@ -1,4 +1,5 @@
 import 'package:console3_noisolate/arithmetics.dart';
+import 'package:console3_noisolate/breakpoint.dart';
 import 'package:console3_noisolate/convertions.dart';
 import 'package:console3_noisolate/memory_mapped_devices.dart';
 import 'package:console3_noisolate/register.dart';
@@ -12,11 +13,13 @@ class CPU {
   Register nextPc = Register(0);
 
   final MemoryMappedDevices devices;
+  final List<Breakpoint> breakPoints;
+  bool breakPointReached = false;
 
   bool ebreakHit = false;
   bool branchTaken = false;
 
-  CPU(this.devices) {
+  CPU(this.devices, this.breakPoints) {
     regs = <Register>[];
     for (var i = 0; i < 32; i++) {
       regs.add(Register(0));
@@ -45,7 +48,7 @@ class CPU {
     BigInt inst = BigInt.from(instruction);
 
     Convertions conv = Convertions(inst);
-    Convertions pcc = Convertions(pc.value);
+    // Convertions pcc = Convertions(pc.value);
     // print(
     //     'Instruction: ${conv.toHexString(width: 32, withPrefix: true)} : ${conv.toBinString(width: 32)} <- pc: ${pcc.toHexString(width: 32, withPrefix: true)}');
 
@@ -261,20 +264,39 @@ class CPU {
   void execute(int instructionCount) {
     // Convertions c = Convertions(BigInt.zero);
 
-    for (var i = 0; i < instructionCount; i++) {
-      // c.byInt = pc.byInt;
-      // print('pc: ${c.toHexString(width: 32, withPrefix: true)}');
+    // The next time execute is run we need to check
+    // if the PC is already at the breakpoint. If so then we
+    // need to execute the next instruction.
+    if (breakPointReached) {
+      breakPointReached = false;
+      executeInstruction();
+    }
 
-      nextInstruction();
+    for (;;) {
+      // Check if PC address is in list of breakpoint addresses
+      // If so stop executing. Disable to breakpoint for 1 step
+      // then enable.
+      Breakpoint bp = breakPoints.firstWhere(
+        (breakpoint) => breakpoint.address == pc.byInt,
+        orElse: () => Breakpoint.nil(),
+      );
 
-      if (ebreakHit) {
-        // print('System Ebreak reached!');
+      if (bp.isNil()) {
+        // No breakpoint found. Keep executing.
+        executeInstruction();
+        if (ebreakHit) {
+          // print('System Ebreak reached!');
+          break;
+        }
+      } else {
+        // We hit the breakpoint but haven't executed it yet.
+        breakPointReached = true;
         break;
       }
     }
   }
 
-  void nextInstruction() {
+  void executeInstruction() {
     if (!ebreakHit) {
       int instruction = _fetch();
 

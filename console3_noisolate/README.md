@@ -2,10 +2,11 @@
 This is a console frontend for the RISC-V simulator WITHOUT using isolates. This makes it possible to debug easier.
 
 # Tasks
+- Add break points based on address
 
 # Running
 ```sh
-/media/iposthuman/Extreme SSD/Development/Flutter/RISCV_Simulator/console3/bin$ dart run console3.dart
+/media/iposthuman/Extreme SSD/Development/Flutter/RISCV_Simulator/console3$ dart run ../bin/console3.dart
 ```
 
 # Create a new project

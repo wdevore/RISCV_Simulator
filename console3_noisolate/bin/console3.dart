@@ -8,7 +8,7 @@ import 'package:console3_noisolate/memory_mapped_devices.dart';
 import 'package:console3_noisolate/soc.dart';
 
 void main(List<String> arguments) {
-  print('Running console3_noisolate...');
+  print('Running console3_noisolate... ${String.fromCharCode(0x11)}');
 
   MemoryMappedDevices devices = MemoryMappedDevices();
   BlockDevice rom = devices.addDevice('Rom', 0x400, 0x400);
@@ -22,7 +22,7 @@ void main(List<String> arguments) {
   // All address are in byte-form, for example, address 0x401 in word-form
   // is actually 0x404 in byte form.
   // -------------------------------------------
-  BigInt baseAddr = BigInt.from(0x400);
+  BigInt baseAddr = BigInt.from(rom.start);
   // Load program
   int status = _loadProgram(baseAddr, devices);
   if (status == -1) {
@@ -39,16 +39,22 @@ void main(List<String> arguments) {
 
   int pcResetAddr = 0x400;
 
-  rom.dump(pcResetAddr, 0x42c);
+  // rom.dump(pcResetAddr, 0x42c);
 
   // Store some data for testing.
   //                      7 6 5 4
   devices.writeByInt(0x0904, 0x12345678);
   //                      b a 9 8
   devices.writeByInt(0x0908, 0xdeadbeaf);
-  ram.dump(0x904, 0x908);
+  // Memory is Little-Endian form
+  devices.writeByInt(0x090c, 0x64656164); // 'daed'
+  //                            |      \ low byte
+  //                             \ high byte
+  // ram.dump(0x900, 0x910);
 
   SoC soc = SoC(devices);
+  soc.addBreakpoint(0x404, enabled: true);
+  soc.addBreakpoint(0x40c, enabled: true);
 
   soc.reset(resetVector: pcResetAddr);
 
@@ -78,6 +84,11 @@ void main(List<String> arguments) {
         soc.instructionStep();
         soc.renderDisplay();
         break;
+      case 'r':
+        // run: r #instructions
+        soc.run();
+        soc.renderDisplay();
+        break;
       case 't': // Reset
         soc.reset(resetVector: pcResetAddr);
         soc.renderDisplay();
@@ -88,11 +99,11 @@ void main(List<String> arguments) {
       case 'x': // Exit
         exitEmu = true;
         break;
-      case 'd':
-        // dump mem: d start length (in words)
+      case 'rom':
+        // dump rom: d start length (in words)
         if (fs.length == 3) {
           int start = int.parse(fs[1], radix: 16);
-          int length = int.parse(fs[2]);
+          int length = int.parse(fs[2]) - 1;
           pStart = start;
           pEnd = start + (length * 4);
         } else if (fs.length == 2) {
@@ -101,6 +112,20 @@ void main(List<String> arguments) {
           pEnd = start + (10 * 4);
         }
         rom.dump(pStart, pEnd);
+        break;
+      case 'ram':
+        // dump ram: d start length (in words)
+        if (fs.length == 3) {
+          int start = int.parse(fs[1], radix: 16);
+          int length = int.parse(fs[2]) - 1;
+          pStart = start;
+          pEnd = start + (length * 4);
+        } else if (fs.length == 2) {
+          int start = int.parse(fs[1], radix: 16);
+          pStart = start;
+          pEnd = start + (10 * 4);
+        }
+        ram.dump(pStart, pEnd);
         break;
       default:
         print('UNKNOWN command: $command');

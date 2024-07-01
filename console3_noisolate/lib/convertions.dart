@@ -1,3 +1,5 @@
+import 'dart:io';
+
 class Convertions {
   BigInt value = BigInt.zero;
 
@@ -36,5 +38,23 @@ class Convertions {
     }
     s = s.substring(0, s.length - 1);
     return s;
+  }
+
+  /// [word] is in Little-Endian order so we need to reverse first
+  /// build ascii 0x20 -> 0x7e. anything else print '.'
+  String wordToString() {
+    List<String> ls = [];
+    int shift = 0;
+    for (var i = 0; i < 4; i++) {
+      BigInt sh = value >> shift;
+      sh = sh & BigInt.from(0x000000ff);
+      if (sh > BigInt.from(19) && sh < BigInt.from(0x7f)) {
+        ls.add(String.fromCharCode(sh.toInt()));
+      } else {
+        ls.add('.');
+      }
+      shift += 8;
+    }
+    return ls.reversed.join();
   }
 }

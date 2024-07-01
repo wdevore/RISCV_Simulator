@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:console3_noisolate/block_device.dart';
+import 'package:console3_noisolate/breakpoint.dart';
 import 'package:console3_noisolate/convertions.dart';
 import 'package:console3_noisolate/cpu.dart';
 import 'package:console3_noisolate/memory_mapped_devices.dart';
@@ -9,9 +10,10 @@ class SoC {
   late CPU cpu;
 
   final MemoryMappedDevices devices;
+  final List<Breakpoint> breakPoints = [];
 
   SoC(this.devices) {
-    cpu = CPU(devices);
+    cpu = CPU(devices, breakPoints);
   }
 
   void run({int instructionCount = 50}) {
@@ -23,7 +25,13 @@ class SoC {
   }
 
   void instructionStep() {
-    cpu.nextInstruction();
+    cpu.executeInstruction();
+  }
+
+  void addBreakpoint(int address, {bool enabled = false}) {
+    breakPoints.add(Breakpoint()
+      ..address = address
+      ..enabled = enabled);
   }
 
   void renderDisplay() {
@@ -43,7 +51,7 @@ class SoC {
     // x24/s8:   0x00000000    x25/s9: 0x00000000   x26/s10: 0x00000000
     // x27/s11   0x00000000
     // x28/t3:   0x00000000    x29/t4: 0x00000000   x30/t5: 0x00000000
-    // x30/st6   0x00000000
+    // x30/t6    0x00000000
     // ---------------------------------------------------------------
     // PC: 0x00000000      nextPc: 0x00000000
     // Program:
@@ -118,23 +126,23 @@ PC: ${c.toHexStringWV32Pf(cpu.pc.value)}      nextPc: ${c.toHexStringWV32Pf(cpu.
     // Print a window of memory around PC
     print('Program:');
     BigInt pc = cpu.pc.value;
+    BigInt start = BigInt.from(rom!.start);
 
     // Print N lines above PC.
     // Attempt to move back 2 words
     BigInt top = pc - BigInt.from(8);
-    BigInt start = BigInt.from(rom!.start);
-
     if (top < start) {
       top = pc - BigInt.from(4);
       if (top < start) {
         top = BigInt.from(rom.start);
       }
     }
+
     for (var i = top.toInt(); i < top.toInt() + (4 * 5); i += 4) {
       String addr = c.toHexStringWV32Pf(BigInt.from(i));
       int data = rom.read(i);
       String val = c.toHexStringWV32Pf(BigInt.from(data));
-      stdout.write('<$addr> $val');
+      stdout.write(' <$addr> $val');
       if (i == pc.toInt()) {
         print(' <-- PC');
       } else {
