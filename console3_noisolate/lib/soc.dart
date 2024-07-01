@@ -150,4 +150,13 @@ PC: ${c.toHexStringWV32Pf(cpu.pc.value)}      nextPc: ${c.toHexStringWV32Pf(cpu.
       }
     }
   }
+
+  void renderBreakpoints() {
+    Convertions c = Convertions(BigInt.zero);
+    print('Breakpoints:');
+    for (var breakpoint in breakPoints) {
+      String addr = c.toHexStringWV32Pf(BigInt.from(breakpoint.address));
+      print('   <$addr> Enabled: ${breakpoint.enabled}');
+    }
+  }
 }

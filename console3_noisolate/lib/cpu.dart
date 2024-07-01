@@ -340,8 +340,8 @@ class CPU {
         reg.value = ar.keepLowerHalfword();
         break;
     }
-    Convertions conv = Convertions(reg.value);
-    print(conv.toHexString());
+    // Convertions conv = Convertions(reg.value);
+    // print(conv.toHexString());
   }
 
   void _processStores(BigInt width, BigInt rs1, BigInt rs2, BigInt imm) {

@@ -1,6 +1,8 @@
 import 'dart:io' as io;
 import 'dart:io';
 
+import 'package:console3_noisolate/breakpoint.dart';
+import 'package:console3_noisolate/convertions.dart';
 import 'package:path/path.dart' as p;
 
 import 'package:console3_noisolate/block_device.dart';
@@ -88,6 +90,24 @@ void main(List<String> arguments) {
         // run: r #instructions
         soc.run();
         soc.renderDisplay();
+        break;
+      case 'b':
+        if (fs.length == 3) {
+          int addr = int.parse(fs[1], radix: 16);
+          bool enabled = bool.parse(fs[2]);
+          Breakpoint bp = soc.breakPoints.firstWhere(
+            (breakpoint) => breakpoint.address == addr,
+            orElse: () => Breakpoint.nil(),
+          );
+          if (bp.isNil()) {
+            Convertions c = Convertions(BigInt.from(addr));
+            print(
+                'No breakpoint at <${c.toHexString(width: 32, withPrefix: true)}>');
+          } else {
+            bp.enabled = enabled;
+          }
+        }
+        soc.renderBreakpoints();
         break;
       case 't': // Reset
         soc.reset(resetVector: pcResetAddr);
