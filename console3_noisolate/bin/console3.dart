@@ -55,8 +55,8 @@ void main(List<String> arguments) {
   // ram.dump(0x900, 0x910);
 
   SoC soc = SoC(devices);
-  soc.addBreakpoint(0x404, enabled: true);
-  soc.addBreakpoint(0x40c, enabled: true);
+  // soc.addBreakpoint(0x404, enabled: true);
+  // soc.addBreakpoint(0x40c, enabled: true);
 
   soc.reset(resetVector: pcResetAddr);
 
@@ -94,7 +94,7 @@ void main(List<String> arguments) {
       case 'b':
         if (fs.length == 3) {
           int addr = int.parse(fs[1], radix: 16);
-          bool enabled = bool.parse(fs[2]);
+          String enabled = fs[2];
           Breakpoint bp = soc.breakPoints.firstWhere(
             (breakpoint) => breakpoint.address == addr,
             orElse: () => Breakpoint.nil(),
@@ -104,7 +104,7 @@ void main(List<String> arguments) {
             print(
                 'No breakpoint at <${c.toHexString(width: 32, withPrefix: true)}>');
           } else {
-            bp.enabled = enabled;
+            bp.enabled = enabled == "on";
           }
         }
         soc.renderBreakpoints();
