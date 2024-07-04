@@ -121,7 +121,7 @@ x31/t6:   ${c.toHexStringWV32Pf(x31)}
 PC: ${c.toHexStringWV32Pf(cpu.pc.value)}      nextPc: ${c.toHexStringWV32Pf(cpu.nextPc.value)}
 """);
 
-    BlockDevice? rom = devices.findDevice('Rom');
+    BlockDevice? rom = devices.findDevice('ROM');
 
     // Print a window of memory around PC
     print('Program:');

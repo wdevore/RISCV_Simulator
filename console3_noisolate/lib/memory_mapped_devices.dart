@@ -71,4 +71,8 @@ class MemoryMappedDevices {
     }
     return null;
   }
+
+  void displayDevices() {
+    devices.forEach(print);
+  }
 }

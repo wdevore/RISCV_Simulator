@@ -10,49 +10,34 @@ import 'package:console3_noisolate/memory_mapped_devices.dart';
 import 'package:console3_noisolate/soc.dart';
 
 void main(List<String> arguments) {
-  print('Running console3_noisolate... ${String.fromCharCode(0x11)}');
+  print('Running console3_noisolate...');
 
-  MemoryMappedDevices devices = MemoryMappedDevices();
-  BlockDevice rom = devices.addDevice('Rom', 0x400, 0x400);
-  print(rom);
-  BlockDevice ram = devices.addDevice('Ram', rom.end + 1 + 0x100, 0x400);
-  print(ram);
-  BlockDevice uart = devices.addDevice('UART', ram.end + 1 + 0x1000, 0x04);
-  print(uart);
+  // Device "ROM": (0x00000400) <0x00000400, 0x000007ff>
+  // Device "BRAM": (0x00000400) <0x00000900, 0x00000cff>
+  // Device "DATA": (0x00000040) <0x00001000, 0x0000103f>
+  // Device "UART": (0x00000004) <0x00001d00, 0x00001d03>
+  MemoryMappedDevices devices = _createDevices('../assembly/programs/counter');
+  BlockDevice? rom = devices.findDevice('ROM');
+  // BlockDevice? ram = devices.findDevice('BRAM');
+  // BlockDevice? data = devices.findDevice('DATA');
+  devices.displayDevices();
 
   // -------------------------------------------
   // All address are in byte-form, for example, address 0x401 in word-form
   // is actually 0x404 in byte form.
   // -------------------------------------------
-  BigInt baseAddr = BigInt.from(rom.start);
+  BigInt baseAddr = BigInt.from(0);
   // Load program
   int status = _loadProgram(baseAddr, devices);
   if (status == -1) {
     throw Exception("Can't load program");
   }
 
-  // BigInt incBy = BigInt.from(4);
-  // devices.write(baseAddr, 0x00f00313);
-  // devices.write(baseAddr += incBy, 0x00200393);
-  // devices.write(baseAddr += incBy, 0x007355b3);
-  // devices.write(baseAddr += incBy, 0x00100073); // ebreak
-
-  rom.writeProtected = true;
+  rom!.writeProtected = true;
 
   int pcResetAddr = 0x400;
 
-  // rom.dump(pcResetAddr, 0x42c);
-
-  // Store some data for testing.
-  //                      7 6 5 4
-  devices.writeByInt(0x0904, 0x12345678);
-  //                      b a 9 8
-  devices.writeByInt(0x0908, 0xdeadbeaf);
-  // Memory is Little-Endian form
-  devices.writeByInt(0x090c, 0x64656164); // 'daed'
-  //                            |      \ low byte
-  //                             \ high byte
-  // ram.dump(0x900, 0x910);
+  // data!.dump(0x1000, 0x100c);
 
   SoC soc = SoC(devices);
   // soc.addBreakpoint(0x404, enabled: true);
@@ -109,6 +94,11 @@ void main(List<String> arguments) {
         }
         soc.renderBreakpoints();
         break;
+      case 'e': // Clears ebreak
+        // Overrides flag. However, the code needs to resumable otherwise
+        // it may crash. Used for debugging via Ebreaks rather BreakPoints.
+        soc.cpu.ebreakHit = false;
+        break;
       case 't': // Reset
         soc.reset(resetVector: pcResetAddr);
         soc.renderDisplay();
@@ -119,33 +109,26 @@ void main(List<String> arguments) {
       case 'x': // Exit
         exitEmu = true;
         break;
-      case 'rom':
-        // dump rom: d start length (in words)
-        if (fs.length == 3) {
-          int start = int.parse(fs[1], radix: 16);
-          int length = int.parse(fs[2]) - 1;
+      case 'v':
+        // v ROM start length (in words)
+        String device = fs[1];
+        BlockDevice? vice = devices.findDevice(device);
+        if (vice == null) {
+          print('Device "$device" not found!');
+          break;
+        }
+
+        if (fs.length == 4) {
+          int start = int.parse(fs[2], radix: 16);
+          int length = int.parse(fs[3]) - 1;
           pStart = start;
           pEnd = start + (length * 4);
-        } else if (fs.length == 2) {
-          int start = int.parse(fs[1], radix: 16);
+        } else if (fs.length == 3) {
+          int start = int.parse(fs[2], radix: 16);
           pStart = start;
           pEnd = start + (10 * 4);
         }
-        rom.dump(pStart, pEnd);
-        break;
-      case 'ram':
-        // dump ram: d start length (in words)
-        if (fs.length == 3) {
-          int start = int.parse(fs[1], radix: 16);
-          int length = int.parse(fs[2]) - 1;
-          pStart = start;
-          pEnd = start + (length * 4);
-        } else if (fs.length == 2) {
-          int start = int.parse(fs[1], radix: 16);
-          pStart = start;
-          pEnd = start + (10 * 4);
-        }
-        ram.dump(pStart, pEnd);
+        vice.dump(pStart, pEnd);
         break;
       default:
         print('UNKNOWN command: $command');
@@ -157,6 +140,37 @@ void main(List<String> arguments) {
 
   print('Emu exiting...');
   io.exit(0);
+}
+
+MemoryMappedDevices _createDevices(String relativePath) {
+  var filePath = p.join(io.Directory.current.path, relativePath, 'program.ld');
+
+  var ioFile = io.File(filePath);
+  List<String> lines;
+
+  RegExp lineExpr =
+      RegExp(r'[ ]+([A-Z]+)[\(wx \)]*:ORIGIN =0x([a-f0-9]+),LENGTH =([0-9]+)');
+
+  MemoryMappedDevices devices = MemoryMappedDevices();
+
+  if (ioFile.existsSync()) {
+    lines = ioFile.readAsLinesSync();
+
+    for (var line in lines) {
+      RegExpMatch? match = lineExpr.firstMatch(line);
+      if (match != null) {
+        String name = match[1]!;
+        String addr = match[2]!;
+        String size = match[3]!;
+
+        int address = int.parse(addr, radix: 16);
+        int length = int.parse(size);
+        devices.addDevice(name, address, length);
+      }
+    }
+  }
+
+  return devices;
 }
 
 int _loadProgram(BigInt baseAddr, MemoryMappedDevices devices) {

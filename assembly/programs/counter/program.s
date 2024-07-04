@@ -5,8 +5,10 @@
 
 # Counts to 10
 
-
 .global _start
+
+.section .rodata
+.balign 4
 
 _start:
     li t0, 0    # x5; reset counter
@@ -18,5 +20,4 @@ loop:
 
 done:
     ebreak
-
-
+    

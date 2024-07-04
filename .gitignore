@@ -25,6 +25,7 @@ doc/api/
 
 *.o
 test
+program
 
 .flutter-plugins
 .flutter-plugins-dependencies

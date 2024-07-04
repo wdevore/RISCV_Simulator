@@ -262,6 +262,11 @@ class CPU {
   }
 
   void execute(int instructionCount) {
+    if (ebreakHit) {
+      // Ebreak flag must be reset first
+      print('WARNING: Ebreak flag still set!');
+      return;
+    }
     // Convertions c = Convertions(BigInt.zero);
 
     // The next time execute is run we need to check
@@ -311,6 +316,16 @@ class CPU {
   // -----------------------------------------------
   void _processLoads(BigInt rd, BigInt width, BigInt baseReg, BigInt offset) {
     // rd = mem[rs1+imm]
+    // offset is sign extended on 12bits
+    Arithmetics ar = Arithmetics(offset);
+    // 31    24 23    16 15     8 7      0
+    // 11111111_11111111_11110000_00000000   <--
+    // 00000000_00000000_00001000_00000000   <-- sign mask
+
+    if (ar.isSigned(signMask: 0x0000000000000800)) {
+      ar.signExtend(0xfffffffffffff000);
+      offset = ar.value;
+    }
 
     Register regBase = regs[baseReg.toInt()];
     BigInt address = regBase.value + offset;
