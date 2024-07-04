@@ -695,7 +695,7 @@ BigInt _extractUJTypeImm(BigInt instruction) {
 
   // 31    24 23    16 15     8 7      0
   // 11111111_11111111_11110000_00000000
-  BigInt simm = instruction & BigInt.from(0xfffff000);
+  // BigInt simm = instruction & BigInt.from(0xfffff000);
   // c.value = simm;
   // print('${c.toHexString(width: 32)} : ${c.toBinString(width: 32)}');
 
