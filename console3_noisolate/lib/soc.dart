@@ -130,7 +130,7 @@ PC: ${c.toHexStringWV32Pf(cpu.pc.value)}      nextPc: ${c.toHexStringWV32Pf(cpu.
 
     // Print N lines above PC.
     // Attempt to move back 2 words
-    BigInt top = pc - BigInt.from(8);
+    BigInt top = pc - BigInt.from(20);
     if (top < start) {
       top = pc - BigInt.from(4);
       if (top < start) {
@@ -138,11 +138,28 @@ PC: ${c.toHexStringWV32Pf(cpu.pc.value)}      nextPc: ${c.toHexStringWV32Pf(cpu.
       }
     }
 
-    for (var i = top.toInt(); i < top.toInt() + (4 * 5); i += 4) {
+    const rowCount = 10;
+
+    for (var i = top.toInt(); i < top.toInt() + (4 * rowCount); i += 4) {
       String addr = c.toHexStringWV32Pf(BigInt.from(i));
       int data = rom.read(i);
       String val = c.toHexStringWV32Pf(BigInt.from(data));
-      stdout.write(' <$addr> $val');
+
+      Breakpoint bp = breakPoints.firstWhere(
+        (breakpoint) => breakpoint.address == i,
+        orElse: () => Breakpoint.nil(),
+      );
+
+      if (!bp.isNil()) {
+        if (bp.enabled) {
+          stdout.write('* <$addr> $val');
+        } else {
+          stdout.write('o <$addr> $val');
+        }
+      } else {
+        stdout.write('  <$addr> $val');
+      }
+
       if (i == pc.toInt()) {
         print(' <-- PC');
       } else {

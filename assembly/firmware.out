@@ -3,21 +3,30 @@
 
 Sections:
 Idx Name          Size      VMA       LMA       File off  Algn  Flags
-  0 .rodata       0000000c  00000400  00000400  00000400  2**2  CONTENTS, ALLOC, LOAD, READONLY, DATA
-  1 .data         0000000c  00001000  00001000  00001000  2**0  CONTENTS, ALLOC, LOAD, DATA
+  0 .rodata       00000024  00000400  00000400  00000400  2**2  CONTENTS, ALLOC, LOAD, READONLY, DATA
+  1 .data         00000010  00001000  00001000  00001000  2**0  CONTENTS, ALLOC, LOAD, DATA
 
 Disassembly of section .rodata:
 
 00000400 <_start>:
- 400:	00001297 	.word	0x00001297
- 404:	c002a283 	.word	0xc002a283
+ 400:	00000293 	.word	0x00000293
+ 404:	00a00313 	.word	0x00a00313
+ 408:	00001397 	.word	0x00001397
+ 40c:	bf838393 	.word	0xbf838393
 
-00000408 <done>:
- 408:	00100073 	.word	0x00100073
+00000410 <loop>:
+ 410:	00128293 	.word	0x00128293
+ 414:	00538623 	.word	0x00538623
+ 418:	00628463 	.word	0x00628463
+ 41c:	ff5ff06f 	.word	0xff5ff06f
+
+00000420 <done>:
+ 420:	00100073 	.word	0x00100073
 
 Disassembly of section .data:
 
-00001000 <number>:
+00001000 <.data>:
     1000:	12345678 	.word	0x12345678
     1004:	deadbeaf 	.word	0xdeadbeaf
     1008:	64656164 	.word	0x64656164
+    100c:	00000000 	.word	0x00000000

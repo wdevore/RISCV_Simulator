@@ -77,6 +77,7 @@ void main(List<String> arguments) {
         soc.renderDisplay();
         break;
       case 'b':
+        // b addr(int) enabled(bool)
         if (fs.length == 3) {
           int addr = int.parse(fs[1], radix: 16);
           String enabled = fs[2];
@@ -93,6 +94,25 @@ void main(List<String> arguments) {
           }
         }
         soc.renderBreakpoints();
+        break;
+      case 'sb': // Set a breakpoint
+        // sb addr
+        int addr = int.parse(fs[1], radix: 16);
+
+        Breakpoint bp = soc.breakPoints.firstWhere(
+          (breakpoint) => breakpoint.address == addr,
+          orElse: () => Breakpoint.nil(),
+        );
+
+        if (bp.isNil()) {
+          // Add new breakpoint
+          soc.addBreakpoint(addr, enabled: true);
+        } else {
+          bp
+            ..enabled = true
+            ..address = addr;
+        }
+        soc.renderDisplay();
         break;
       case 'e': // Clears ebreak
         // Overrides flag. However, the code needs to resumable otherwise
@@ -127,6 +147,9 @@ void main(List<String> arguments) {
           int start = int.parse(fs[2], radix: 16);
           pStart = start;
           pEnd = start + (10 * 4);
+        } else {
+          pStart = vice.start;
+          pEnd = pStart + (10 * 4);
         }
         vice.dump(pStart, pEnd);
         break;
